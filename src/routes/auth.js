@@ -1,4 +1,5 @@
 const express = require('express');
+const escapeHtml = require('escape-html');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const { Op } = require('sequelize');
@@ -7,13 +8,7 @@ const router = express.Router();
 
 const sanitizeString = (str) => {
   if (typeof str !== 'string') return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+  return escapeHtml(str);
 };
 
 const sanitizeObject = (obj) => {
