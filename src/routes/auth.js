@@ -5,6 +5,33 @@ const { Op } = require('sequelize');
 
 const router = express.Router();
 
+const sanitizeString = (str) => {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+};
+
+const sanitizeObject = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  
+  const sanitized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'string') {
+      sanitized[key] = sanitizeString(value);
+    } else if (typeof value === 'object' && value !== null) {
+      sanitized[key] = sanitizeObject(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+};
+
 // POST /auth/login
 router.post('/login', async (req, res) => {
   try {
@@ -31,14 +58,16 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    const sanitizedUser = sanitizeObject({
+      id: user.id,
+      username: user.username,
+      email: user.email
+    });
+
     res.json({
       message: 'Login successful',
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      }
+      user: sanitizedUser
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -67,13 +96,15 @@ router.post('/register', async (req, res) => {
 
     const user = await User.create({ username, password, email });
 
+    const sanitizedUser = sanitizeObject({
+      id: user.id,
+      username: user.username,
+      email: user.email
+    });
+
     res.status(201).json({
       message: 'User created successfully',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      }
+      user: sanitizedUser
     });
   } catch (error) {
     console.error('Registration error:', error);

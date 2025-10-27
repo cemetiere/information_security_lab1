@@ -25,7 +25,6 @@ app.get('/', (req, res) => {
         register: 'POST /auth/register'
       },
       api: {
-        getData: 'GET /api/data (requires auth)',
         createPost: 'POST /api/posts (requires auth)',
         getPosts: 'GET /api/posts (requires auth)'
       }
