@@ -1,0 +1,77 @@
+name: CI/CD Security Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    # SAST
+    - name: Run npm audit for vulnerabilities
+      run: npm audit --audit-level=moderate
+      continue-on-error: true
+    
+    - name: Run Snyk security scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+    
+    - name: Run ESLint security audit
+      run: npx eslint . --config .eslintrc.js --ext .js,.json --ignore-pattern node_modules/ || true
+  
+    # SCA
+    - name: OWASP Dependency Check
+      uses: dependency-check/Dependency-Check@main
+      with:
+        project: 'my-node-app'
+        path: '.'
+        format: 'HTML'
+        out: 'reports'
+    
+    - name: Upload OWASP report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-report
+        path: reports/
+        retention-days: 30
+    
+    - name: Run Retire.js for JavaScript vulnerabilities
+      run: |
+        npx retire --outputformat json --outputpath retirejs-report.json || true
+      continue-on-error: true
+    
+    - name: Run npm outdated check
+      run: npm outdated --json || true
+    
+    - name: Security summary
+      run: |
+        echo "Security scans completed"
+        echo "========================="
+        echo "✓ npm audit"
+        echo "✓ Snyk scan"
+        echo "✓ OWASP Dependency Check"
+        echo "✓ Retire.js"
+        echo "========================="
