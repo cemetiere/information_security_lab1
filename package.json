@@ -6,12 +6,9 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "security": "npm run security:audit && npm run security:snyk",
-    "security:audit": "npm audit --audit-level=moderate",
-    "security:snyk": "snyk test",
-    "security:retire": "retire --outputformat json",
-    "security:outdated": "npm outdated",
-    "lint:security": "eslint . --config .eslintrc.js --no-eslintrc --env node --rule 'no-eval: error' --rule 'no-implied-eval: error'"
+    "security:eslint": "eslint . --ext .js --config .eslintrc.security.js",
+    "security:audit": "npm audit --audit-level moderate",
+    "security:scan": "npm run security:eslint && npm run security:audit"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
