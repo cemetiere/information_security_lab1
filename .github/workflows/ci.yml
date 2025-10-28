@@ -177,7 +177,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
+  
     - name: Detect secrets with TruffleHog
       uses: trufflesecurity/trufflehog@main
       with:
@@ -185,12 +185,11 @@ jobs:
         base: ${{ github.event.pull_request.base.sha || 'HEAD^' }}
         head: HEAD
         extra_args: --only-verified
-
-    - name: Detect secrets with Gitleaks (simplified)
+  
+    - name: Detect secrets with Gitleaks (simple)
       uses: gitleaks/gitleaks-action@v2
       env:
         GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-
   security-report:
     name: Generate Security Report
     runs-on: ubuntu-latest
