@@ -1,0 +1,26 @@
+title = "gitleaks config"
+# Добавляем правила для сканирования секретов
+[[rules]]
+description = "Generic API Key"
+regex = '''(?i)(api_key|apikey|secret_key|secret|password|token|auth)[=:]["']?[0-9a-zA-Z\-_]{16,45}["']?'''
+tags = ["key", "API"]
+
+[[rules]]
+description = "JWT"
+regex = '''eyJ[a-zA-Z0-9]{10,}\.eyJ[a-zA-Z0-9]{10,}\.[a-zA-Z0-9_-]{10,}'''
+tags = ["key", "JWT"]
+
+[[rules]]
+description = "GitHub Token"
+regex = '''ghp_[a-zA-Z0-9]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+description = "AWS API Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["key", "AWS"]
+
+[[rules]]
+description = "SSH Private Key"
+regex = '''-----BEGIN [A-Z]* PRIVATE KEY-----'''
+tags = ["key", "SSH"]
