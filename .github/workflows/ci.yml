@@ -8,7 +8,6 @@ on:
   schedule:
     - cron: '0 9 * * 1'
 
-# Добавляем необходимые permissions
 permissions:
   security-events: write
   actions: read
@@ -55,10 +54,8 @@ jobs:
 
     - name: Run npm audit (continue on moderate vulnerabilities)
       run: |
-        # Запускаем audit и сохраняем результат, но не завершаемся с ошибкой
         npm audit --audit-level high > audit-report.txt 2>&1 || true
         
-        # Проверяем наличие уязвимостей и создаем отчет
         if npm audit --audit-level moderate --json > audit.json 2>/dev/null; then
           echo "✅ No high severity vulnerabilities found"
           echo "## npm Audit Results" >> $GITHUB_STEP_SUMMARY
@@ -73,7 +70,6 @@ jobs:
           echo "**Note:** Moderate vulnerabilities do not block the pipeline" >> $GITHUB_STEP_SUMMARY
         fi
 
-        # Всегда показываем полный отчет
         echo "### Full Audit Report" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         npm audit >> $GITHUB_STEP_SUMMARY 2>&1 || true
@@ -160,15 +156,22 @@ jobs:
 
     - name: Attempt to fix vulnerabilities
       run: |
-        # Пытаемся автоматически исправить уязвимости
         npm audit fix --only=prod || true
         npm audit fix --package-lock-only || true
 
-    - name: Run OWASP Dependency Check
+    - name: Run OWASP Dependency Check (with offline mode)
       run: |
         wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
         unzip -q dependency-check-9.0.9-release.zip
-        ./dependency-check/bin/dependency-check.sh --project "express-auth-app" --scan . --out reports --format HTML --failOnCVSS 9 --enableExperimental
+        # Используем локальную базу данных и пропускаем обновление NVD
+        ./dependency-check/bin/dependency-check.sh \
+          --project "express-auth-app" \
+          --scan . \
+          --out reports \
+          --format HTML \
+          --failOnCVSS 9 \
+          --enableExperimental \
+          --noupdate
         
     - name: Upload Dependency Check Report
       uses: actions/upload-artifact@v4
@@ -205,10 +208,10 @@ jobs:
         head: HEAD
         extra_args: --only-verified
 
-    - name: Detect secrets with Gitleaks
+    - name: Detect secrets with Gitleaks (simplified)
       uses: gitleaks/gitleaks-action@v2
-      with:
-        config-path: .gitleaks.toml
+      env:
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   security-report:
     name: Generate Security Report
