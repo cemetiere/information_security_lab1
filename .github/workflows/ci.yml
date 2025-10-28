@@ -1,77 +1,130 @@
-name: CI/CD Security Pipeline
+name: Security Scan
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 9 * * 1'
 
 jobs:
-  security-scan:
+  sast:
+    name: SAST Security Scan
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [18.x]
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Setup Node.js
+
+    - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '18'
         cache: 'npm'
-    
+
     - name: Install dependencies
       run: npm ci
-    
-    # SAST
-    - name: Run npm audit for vulnerabilities
-      run: npm audit --audit-level=moderate
-      continue-on-error: true
-    
-    - name: Run Snyk security scan
-      uses: snyk/actions/node@master
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Run ESLint Security Scan
+      run: |
+        npm install --save-dev eslint-plugin-security
+        npx eslint . --ext .js --config .eslintrc.security.js || true
+
+    - name: Run npm audit for known vulnerabilities
+      run: npm audit --audit-level moderate
+
+    - name: Semgrep SAST Scan
+      uses: returntocorp/semgrep-action@v1
       with:
-        args: --severity-threshold=high
-    
-    - name: Run ESLint security audit
-      run: npx eslint . --config .eslintrc.js --ext .js,.json --ignore-pattern node_modules/ || true
-  
-    # SCA
-    - name: OWASP Dependency Check
-      uses: dependency-check/Dependency-Check@main
+        config: p/security-audit
+
+    - name: CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
       with:
-        project: 'my-node-app'
+        languages: javascript
+
+  sca:
+    name: SCA Dependency Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run npm audit with detailed report
+      run: |
+        npm audit --json > npm-audit-report.json || true
+        echo "npm audit completed"
+
+    - name: Run OWASP Dependency Check
+      uses: dependency-check/Dependency-Check_Action@v1.5.0
+      with:
+        project: 'express-auth-app'
         path: '.'
         format: 'HTML'
-        out: 'reports'
-    
-    - name: Upload OWASP report
+        args: >
+          --enableRetired
+          --failOnCVSS 7
+          --scan node_modules
+          --out reports
+
+    - name: Upload Dependency Check Report
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: dependency-check-report
         path: reports/
         retention-days: 30
-    
-    - name: Run Retire.js for JavaScript vulnerabilities
+
+    - name: Run Snyk Security Scan
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: |
-        npx retire --outputformat json --outputpath retirejs-report.json || true
-      continue-on-error: true
+        npm install -g snyk
+        if [ -n "$SNYK_TOKEN" ]; then
+          snyk test --severity-threshold=high
+          snyk monitor
+        else
+          echo "Snyk token not set, skipping Snyk scan"
+        fi
+
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
     
-    - name: Run npm outdated check
-      run: npm outdated --json || true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Detect secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.pull_request.base.sha || 'HEAD^' }}
+        head: HEAD
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [sast, sca, secret-scan]
+    if: always()
     
-    - name: Security summary
+    steps:
+    - name: Security Summary
       run: |
-        echo "Security scans completed"
-        echo "========================="
-        echo "✓ npm audit"
-        echo "✓ Snyk scan"
-        echo "✓ OWASP Dependency Check"
-        echo "✓ Retire.js"
-        echo "========================="
+        echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "### SAST: ${{ needs.sast.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "### SCA: ${{ needs.sca.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "### Secret Scan: ${{ needs.secret-scan.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "Scans completed. Check individual job logs for details." >> $GITHUB_STEP_SUMMARY

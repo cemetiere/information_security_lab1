@@ -1,0 +1,43 @@
+rules:
+  - id: express-xss
+    patterns:
+      - pattern: res.send(...)
+      - pattern-not: res.json(...)
+      - pattern-not: res.sendFile(...)
+    message: "Use res.json() instead of res.send() for JSON responses to prevent XSS"
+    languages: [javascript]
+    severity: WARNING
+
+  - id: jwt-hardcoded-secret
+    patterns:
+      - pattern: jwt.sign(..., $SECRET, ...)
+      - pattern: $SECRET = "'...'"
+    message: "Hardcoded JWT secret detected"
+    languages: [javascript]
+    severity: ERROR
+
+  - id: sql-injection-sequelize
+    patterns:
+      - pattern: sequelize.query("...$VAR...")
+    message: "Potential SQL injection in raw query"
+    languages: [javascript]
+    severity: ERROR
+
+  - id: auth-bypass
+    patterns:
+      - pattern: |
+          if (req.user) {
+            ...
+          } else {
+            res.status(403).json(...)
+          }
+      - pattern-not: |
+          if (req.user) {
+            ...
+          } else {
+            res.status(403).json({error: ...})
+            return
+          }
+    message: "Missing return statement after error response"
+    languages: [javascript]
+    severity: WARNING
