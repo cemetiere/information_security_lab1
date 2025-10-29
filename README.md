@@ -92,9 +92,9 @@ Content-Type: application/json
 ### Отчеты SAST/SCA
 
 
-[Ссылка]([https://github.com/kkettch/information-security-semester-7/actions/runs/17979456301/job/51141314225#logs](https://github.com/cemetiere/information_security_lab1/actions/runs/18881253107)) на успешно пройденный pipeline
+https://github.com/cemetiere/information_security_lab1/actions/runs/18881253107 Ссылка на пройденный pipeline
 
-[Ссылка]([https://github.com/kkettch/information-security-semester-7](https://github.com/cemetiere/information_security_lab1))на GitHub репозиторий
+https://github.com/cemetiere/information_security_lab1 Ссылка на GitHub репозиторий
 
 ### Вывод
 
